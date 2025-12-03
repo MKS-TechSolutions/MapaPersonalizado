@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Rotas Customizada</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="app-container">
+        
+        <div id="mapa-customizado">
+            </div>
+
+        <div id="painel-controle">
+            <h2>Calculador de Rotas</h2>
+            
+            <form id="form-rota">
+                
+                <div class="input-group">
+                    <label for="origem">A</label>
+                    <input type="text" id="origem" placeholder="Origem" required>
+                </div>
+                
+                <div class="input-group">
+                    <label for="destino">B</label>
+                    <input type="text" id="destino" placeholder="Destino" required>
+                </div>
+
+                <div class="controls-section">
+                    <p>Tipo de Veículo:</p>
+                    <div class="radio-group veiculo-select">
+                        <input type="radio" id="carro" name="veiculo" value="carro" checked>
+                        <label for="carro">🚗</label>
+                        
+                        <input type="radio" id="caminhao" name="veiculo" value="caminhao">
+                        <label for="caminhao">🚛</label>
+                        
+                        <input type="radio" id="moto" name="veiculo" value="moto">
+                        <label for="moto">🛵</label>
+                    </div>
+
+                    <div class="eixos-controls">
+                        <label for="eixos">Eixos:</label>
+                        <input type="number" id="eixos" value="2" min="1" max="10">
+                    </div>
+                </div>
+
+                <div class="controls-section">
+                    <div class="input-row">
+                        <label for="consumo">Consumo (KM/L):</label>
+                        <input type="number" id="consumo" value="0.0" step="0.1" min="0">
+                    </div>
+                    
+                    <div class="input-row">
+                        <label for="preco-combustivel">Preço Combustível (R$):</label>
+                        <input type="number" id="preco-combustivel" value="0.00" step="0.01" min="0">
+                    </div>
+                    
+                    <p>Preferência de Rota:</p>
+                    <div class="radio-group rota-preference">
+                        <input type="radio" id="eficiente" name="preferencia-rota" value="eficiente" checked>
+                        <label for="eficiente">Eficiente</label>
+                        
+                        <input type="radio" id="curta" name="preferencia-rota" value="curta">
+                        <label for="curta">Curta</label>
+                        
+                        <input type="checkbox" id="evitar-pedagios">
+                        <label for="evitar-pedagios">Evitar Pedágios</label>
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-calcular">CALCULAR ROTA</button>
+            </form>
+
+            <div id="resultados-rota" style="display: none;">
+                <h3>Resumo do Cálculo</h3>
+                <p>Distância: <span id="res-distancia"></span></p>
+                <p>Pedágio Total: <span id="res-pedagio"></span></p>
+                <p>Pedágio por Eixo: <span id="res-pedagio-eixo"></span></p>
+                <p>Custo Combustível: <span id="res-combustivel"></span></p>
+                <hr>
+                <h4>Custo Total Estimado: <span id="res-total"></span></h4>
+            </div>
+
+        </div> </div> <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    
+    <script src="mapa.js"></script>
+</body>
+</html>

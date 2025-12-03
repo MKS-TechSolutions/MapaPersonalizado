@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1,
+        "nome": "Praça Cristal - BR-116",
+        "rodovia": "BR-116",
+        "lat": -30.0768,
+        "lon": -51.1785,
+        "eixo_1_2": 7.80,
+        "eixo_adicional": 3.90
+    },
+    {
+        "id": 2,
+        "nome": "Praça Gravataí - Free Flow",
+        "rodovia": "Free Flow - RS-101",
+        "lat": -29.9500,
+        "lon": -50.9500,
+        "eixo_1_2": 12.50,
+        "eixo_adicional": 6.25
+    }
+]

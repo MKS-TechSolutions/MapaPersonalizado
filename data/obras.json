@@ -1,0 +1,26 @@
+[
+    {
+        "id": 101,
+        "nome": "Implantação de Via Dupla",
+        "rodovia": "BR-290",
+        "start_lat": -30.0346,
+        "start_lon": -51.2177,
+        "end_lat": -30.0500, 
+        "end_lon": -51.2300,  
+        "descricao": "Obras de alargamento de pista entre os KMS 10 e 20.",
+        "impacto": "Bloqueio Parcial - Lentidão",
+        "data_fim": "2026-12-31"
+    },
+    {
+        "id": 102,
+        "nome": "Fechamento para Manutenção",
+        "rodovia": "Estrada do Mar",
+        "start_lat": -29.9320,
+        "start_lon": -50.1250,
+        "end_lat": -29.9350,
+        "end_lon": -50.1300,
+        "descricao": "Pista bloqueada na altura do KM 50. Desvio obrigatório.",
+        "impacto": "Bloqueio Total",
+        "data_fim": "2025-12-20"
+    }
+]
