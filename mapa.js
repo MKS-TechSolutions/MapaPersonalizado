@@ -2,17 +2,18 @@
 // 1. VARIÁVEIS DE CONFIGURAÇÃO E DADOS
 // =================================================================
 
-const CENTRO_MAPA = [-14.235, -51.925]; 
-const ZOOM_INICIAL = 4; 
+const CENTRO_MAPA = [-30.0328, -51.2304]; 
+const ZOOM_INICIAL = 7; 
 
-// URLs RAW dos seus arquivos JSON (Ajuste para seus caminhos finais no GitHub)
-const URL_DADOS_PEDAGIOS = './data/pedagios.json'; 
-const URL_DADOS_OBRAS = './data/obras.json';       
-const URL_OSRM = 'https://router.project-osrm.org/route/v1/driving/'; // API de Roteamento OSRM
+// 🚨 LINK CORRIGIDO E INSERIDO AUTOMATICAMENTE A PARTIR DA SUA PLANILHA!
+const URL_DADOS_MESTRA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTCaSRtV1pgSer6EXDV1NfUW4NEl3mcY6d-fjiIld4jqz4X9HZAzLarap4BStAZTpALIUnzNZ9Z0Eoz/pub?output=csv'; 
+
+const URL_OSRM = 'https://router.project-osrm.org/route/v1/driving/'; 
 
 let dadosPedagios = [];
 let dadosObras = [];
-let rotaAtualLayer; // Variável para a linha da rota no mapa
+let dadosViasDuplas = []; 
+let rotaAtualLayer; 
 
 
 // =================================================================
@@ -45,103 +46,162 @@ const IconeObra = L.icon({
     popupAnchor: [0, -30]
 });
 
+const IconeViaDupla = L.icon({
+    iconUrl: './assets/icons/icon-caminhao.png', 
+    iconSize: [20, 20],
+    iconAnchor: [10, 20],
+    popupAnchor: [0, -20]
+});
+
 
 // =================================================================
 // 4. FUNÇÕES DE VISUALIZAÇÃO E DADOS
 // =================================================================
 
-function construirPopup(data, tipo) {
-    let html = `<h4>${data.nome}</h4>`;
+function construirPopup(data) {
+    const tipo = (data.TIPO || 'desconhecido').toLowerCase();
+    let html = `<h4>${data.NOME}</h4>`;
     
+    const eixo12 = parseFloat(data.EIXO_1_2);
+    const eixoAdicional = parseFloat(data.EIXO_ADICIONAL);
+    const impacto = data.IMPACTO;
+
     if (tipo === 'pedagio') {
-        html += `<p>Rodovia: ${data.rodovia}</p>`;
-        html += `<p>Tarifa Base (2 Eixos): R$ ${data.eixo_1_2.toFixed(2)}</p>`;
-        html += `<p>Eixo Adicional: R$ ${data.eixo_adicional.toFixed(2)}</p>`;
+        html += `<p>Rodovia: ${data.RODOVIA}</p>`;
+        if (!isNaN(eixo12)) html += `<p>Tarifa Base (2 Eixos): R$ ${eixo12.toFixed(2)}</p>`;
+        if (!isNaN(eixoAdicional)) html += `<p>Eixo Adicional: R$ ${eixoAdicional.toFixed(2)}</p>`;
     } else if (tipo === 'obra') {
-        html += `<p>Rodovia: ${data.rodovia}</p>`;
-        html += `<p>Descrição: ${data.descricao}</p>`;
-        html += `<p style="color: ${data.impacto.includes('Total') ? 'red' : 'orange'};">Impacto: ${data.impacto}</p>`;
-        html += `<p>Previsão de Fim: ${data.data_fim}</p>`;
+        html += `<p>Rodovia: ${data.RODOVIA}</p>`;
+        html += `<p>Descrição: ${data.DESCRICAO}</p>`;
+        html += `<p style="color: ${impacto && impacto.includes('Total') ? 'red' : 'orange'};">Impacto: ${impacto}</p>`;
+        html += `<p>Previsão de Fim: ${data.DATA_FIM}</p>`;
+    } else if (tipo === 'via_dupla') {
+        html += `<p>Rodovia: ${data.RODOVIA}</p>`;
+        html += `<p>Status: Duplicada</p>`;
+        html += `<p>Descrição: ${data.DESCRICAO}</p>`;
     }
 
     return html;
 }
 
-function plotarPOI(data, icon, tipo) {
+function plotarPOI(data) {
     
-    // Lógica para TRAÇAR UM TRECHO DE OBRA (POLYLINE)
-    if (tipo === 'obra' && data.start_lat && data.end_lat) {
+    const tipo = (data.TIPO || 'DESCONHECIDO').toLowerCase();
+    
+    const startLat = parseFloat(data.START_LAT);
+    const startLon = parseFloat(data.START_LON);
+    const endLat = parseFloat(data.END_LAT);
+    const endLon = parseFloat(data.END_LON);
+    const lat = parseFloat(data.LAT);
+    const lon = parseFloat(data.LON);
+    
+    let icon;
+    let estilo;
+
+    if (tipo === 'pedagio') {
+        icon = IconePedagio;
+    } else if (tipo === 'obra') {
+        icon = IconeObra;
+        estilo = { color: '#FF0000', weight: 5, opacity: 0.8, dashArray: '10, 5' };
+    } else if (tipo === 'via_dupla') {
+        icon = IconeViaDupla;
+        estilo = { color: '#00AA00', weight: 4, opacity: 0.9 };
+    }
+    
+    // --- LÓGICA PARA TRAÇAR UM TRECHO DE LINHA (OBRA/VIA_DUPLA) ---
+    if (!isNaN(startLat) && !isNaN(endLat) && estilo) {
         
         const pontosTrecho = [
-            [data.start_lat, data.start_lon],
-            [data.end_lat, data.end_lon]
+            [startLat, startLon],
+            [endLat, endLon]
         ];
         
-        const estiloObra = {
-            color: '#FF0000', 
-            weight: 5,
-            opacity: 0.8,
-            dashArray: '10, 5' 
-        };
-
-        L.polyline(pontosTrecho, estiloObra)
+        L.polyline(pontosTrecho, estilo)
             .addTo(map)
-            .bindPopup(construirPopup(data, tipo));
+            .bindPopup(construirPopup(data));
 
-        // Plota um marcador no início da obra
-        L.marker([data.start_lat, data.start_lon], { icon: icon })
+        L.marker([startLat, startLon], { icon: icon })
              .addTo(map)
-             .bindPopup(`INÍCIO da Obra: ${data.nome}`);
-        
+             .bindPopup(`${data.TIPO}: ${data.NOME}`);
     } 
-    // Lógica para PLOTAR UM PONTO (MARKER)
-    else if (data.lat && data.lon) {
-        L.marker([data.lat, data.lon], { icon: icon })
+    // --- LÓGICA PARA PLOTAR UM PONTO (PEDAGIO) ---
+    else if (!isNaN(lat) && !isNaN(lon) && tipo === 'pedagio') {
+        L.marker([lat, lon], { icon: icon })
             .addTo(map)
-            .bindPopup(construirPopup(data, tipo));
+            .bindPopup(construirPopup(data));
     }
 }
 
-async function carregarMarcadores(url, icon, tipo) {
+function csvToJson(csvText) {
+    const lines = csvText.split('\n').filter(line => line.trim() !== '');
+    if (lines.length < 1) return [];
+
+    const headers = lines[0].split(',').map(header => header.trim().toUpperCase());
+    const result = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const obj = {};
+        const currentline = lines[i].split(',');
+
+        for (let j = 0; j < headers.length; j++) {
+            const value = currentline[j] ? currentline[j].trim() : '';
+            if (value === '') continue; 
+
+            obj[headers[j]] = value.replace(',', '.'); 
+        }
+        if (Object.keys(obj).length > 0) {
+             result.push(obj);
+        }
+    }
+    return result;
+}
+
+async function carregarDadosMestres() {
+    
     try {
-        const resposta = await fetch(url);
+        // Adiciona um timestamp para evitar cache do Google Sheets
+        const fetchUrl = `${URL_DADOS_MESTRA}&_t=${new Date().getTime()}`;
+        const resposta = await fetch(fetchUrl);
+        
         if (!resposta.ok) throw new Error(`Status HTTP ${resposta.status}`);
         
-        const listaPOIs = await resposta.json();
-        
-        if (tipo === 'pedagio') dadosPedagios = listaPOIs;
-        if (tipo === 'obra') dadosObras = listaPOIs;
+        const csvText = await resposta.text();
+        const listaPOIs = csvToJson(csvText);
+
+        dadosPedagios = [];
+        dadosObras = [];
+        dadosViasDuplas = [];
 
         listaPOIs.forEach(poi => {
-            // Garante que as coordenadas sejam números
-            if (poi.lat) poi.lat = parseFloat(poi.lat);
-            if (poi.lon) poi.lon = parseFloat(poi.lon);
-            if (poi.start_lat) poi.start_lat = parseFloat(poi.start_lat);
-            if (poi.start_lon) poi.start_lon = parseFloat(poi.start_lon);
-            if (poi.end_lat) poi.end_lat = parseFloat(poi.end_lat);
-            if (poi.end_lon) poi.end_lon = parseFloat(poi.end_lon);
-            
-            plotarPOI(poi, icon, tipo);
+            const tipo = (poi.TIPO || '').toUpperCase();
+            if (tipo === 'PEDAGIO') {
+                dadosPedagios.push(poi);
+                plotarPOI(poi);
+            } else if (tipo === 'OBRA') {
+                dadosObras.push(poi);
+                plotarPOI(poi);
+            } else if (tipo === 'VIA_DUPLA') {
+                dadosViasDuplas.push(poi);
+                plotarPOI(poi);
+            }
         });
         
+        console.log(`Dados carregados: ${dadosPedagios.length} pedágios, ${dadosObras.length} obras, ${dadosViasDuplas.length} vias duplas.`);
+        
     } catch (error) {
-        console.error(`Erro ao carregar dados de ${tipo}:`, error);
-        console.warn(`Verifique o arquivo '${tipo}.json'.`);
+        console.error(`Erro ao carregar dados da planilha mestra:`, error);
+        console.warn(`Verifique se o link da planilha está correto e publicado como CSV. URL utilizada: ${URL_DADOS_MESTRA}`);
     }
 }
 
 // Execução inicial
-carregarMarcadores(URL_DADOS_PEDAGIOS, IconePedagio, 'pedagio');
-carregarMarcadores(URL_DADOS_OBRAS, IconeObra, 'obra');
+carregarDadosMestres();
 
 
 // =================================================================
 // 5. FUNÇÕES DE ROTEAMENTO E GEOCÓDIGO
 // =================================================================
 
-/**
- * Converte um endereço de texto em coordenadas (Lat/Lon) usando Nominatim.
- */
 async function geocoding(endereco) {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endereco)}&limit=1`;
     try {
@@ -157,9 +217,6 @@ async function geocoding(endereco) {
     }
 }
 
-/**
- * Calcula a rota usando OSRM e renderiza no mapa.
- */
 async function calcularERenderizarRota(coordsOrigem, coordsDestino, eixos) {
     const coordString = `${coordsOrigem.lon},${coordsOrigem.lat};${coordsDestino.lon},${coordsDestino.lat}`;
     const url = `${URL_OSRM}${coordString}?steps=true&geometries=geojson&overview=full`;
@@ -179,7 +236,6 @@ async function calcularERenderizarRota(coordsOrigem, coordsDestino, eixos) {
         const distanciaKM = (rota.distance / 1000).toFixed(2);
         const duracaoMin = (rota.duration / 60).toFixed(0);
         
-        // --- Visualização da Rota ---
         if (rotaAtualLayer) {
             map.removeLayer(rotaAtualLayer);
         }
@@ -191,7 +247,6 @@ async function calcularERenderizarRota(coordsOrigem, coordsDestino, eixos) {
 
         map.fitBounds(rotaAtualLayer.getBounds());
         
-        // --- Cálculo Customizado! ---
         calcularCustoCustomizado(geojson.coordinates, distanciaKM, duracaoMin, eixos);
         
     } catch (error) {
@@ -205,11 +260,8 @@ async function calcularERenderizarRota(coordsOrigem, coordsDestino, eixos) {
 // 6. LÓGICA DE CÁLCULO DE CUSTOS CUSTOMIZADOS
 // =================================================================
 
-/**
- * Calcula a distância entre dois pontos Lat/Lon em quilômetros (Fórmula de Haversine).
- */
 function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Raio médio da Terra em km
+    const R = 6371; 
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
     
@@ -221,78 +273,64 @@ function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
     return R * c; 
 }
 
-
-/**
- * Executa a lógica customizada de detecção de pedágios e cálculo de custo.
- */
 function calcularPedagios(geometriaRota, eixos) {
     if (document.getElementById('evitar-pedagios').checked) {
-        return 0; 
+        return { total: 0, porEixo: 0 }; 
     }
 
-    const RAIO_DETECCAO_KM = 0.5; // 500 metros
+    const RAIO_DETECCAO_KM = 0.5; 
     let pedagioTotal = 0;
     const pedagiosEncontrados = new Set(); 
 
-    // 1. Percorre a lista de pedágios customizados
     for (const pedagio of dadosPedagios) {
         
-        // 2. Percorre a geometria da rota (o OSRM retorna [lon, lat])
+        const pedagioLat = parseFloat(pedagio.LAT);
+        const pedagioLon = parseFloat(pedagio.LON);
+        const eixo12 = parseFloat(pedagio.EIXO_1_2);
+        const eixoAdicional = parseFloat(pedagio.EIXO_ADICIONAL);
+
+        if (isNaN(pedagioLat) || isNaN(pedagioLon)) continue;
+
         for (const [lonRota, latRota] of geometriaRota) {
             
-            // 3. Calcula a distância entre o ponto da rota e o pedágio
             const distancia = calcularDistanciaHaversine(
                 latRota, lonRota, 
-                pedagio.lat, pedagio.lon
+                pedagioLat, pedagioLon
             );
             
-            // 4. Detecção e Cálculo
             if (distancia <= RAIO_DETECCAO_KM) {
-                if (!pedagiosEncontrados.has(pedagio.id)) {
+                if (!pedagiosEncontrados.has(pedagio.ID)) {
                     
-                    let custo = pedagio.eixo_1_2;
-                    // Aplica a lógica de eixos (carro = 2 eixos; caminhão > 2 eixos)
+                    let custo = eixo12;
                     if (eixos > 2) {
-                        custo += pedagio.eixo_adicional * (eixos - 2);
+                        custo += eixoAdicional * (eixos - 2);
                     }
                     
                     pedagioTotal += custo;
-                    pedagiosEncontrados.add(pedagio.id);
-                    
-                    console.log(`Pedágio detectado: ${pedagio.nome}. Custo calculado: R$ ${custo.toFixed(2)}`);
+                    pedagiosEncontrados.add(pedagio.ID);
                     break; 
                 }
             }
         }
     }
     
-    // Retorna o valor total e, adicionalmente, o valor por eixo
     return {
         total: pedagioTotal,
         porEixo: pedagioTotal / (eixos > 0 ? eixos : 1)
     };
 }
 
-
-/**
- * Função principal que coordena o cálculo de custos e atualiza a UI.
- */
 function calcularCustoCustomizado(geometriaRota, distanciaKM, duracaoMin, eixos) {
-    console.log("Iniciando cálculo customizado de custos...");
     
-    // CÁLCULO DE PEDÁGIOS
     const resultadosPedagio = calcularPedagios(geometriaRota, eixos);
     
-    // CÁLCULO DE COMBUSTÍVEL
     const precoCombustivel = parseFloat(document.getElementById('preco-combustivel').value);
     const consumo = parseFloat(document.getElementById('consumo').value);
     
-    // Custo de Combustível: (Distância / Consumo) * Preço
     const combustivelTotal = consumo > 0 && precoCombustivel > 0
         ? (distanciaKM / consumo) * precoCombustivel
         : 0;
     
-    // ATUALIZAÇÃO DOS RESULTADOS
     atualizarResultados(distanciaKM, duracaoMin, resultadosPedagio.total, resultadosPedagio.porEixo, combustivelTotal);
 }
 
@@ -306,7 +344,6 @@ function atualizarResultados(distanciaKM, duracaoMin, pedagioTotal, pedagioPorEi
 
     document.getElementById('res-distancia').textContent = `${distanciaKM} KM`;
     document.getElementById('res-pedagio').textContent = `R$ ${pedagioTotal.toFixed(2)}`;
-    // A span 'res-pedagio-eixo' deve estar no seu index.html!
     document.getElementById('res-pedagio-eixo').textContent = `R$ ${pedagioPorEixo.toFixed(2)}`; 
     document.getElementById('res-combustivel').textContent = `R$ ${combustivelTotal.toFixed(2)}`;
     document.getElementById('res-total').textContent = `R$ ${custoTotal.toFixed(2)}`;
@@ -323,7 +360,6 @@ const formRota = document.getElementById('form-rota');
 formRota.addEventListener('submit', async function(event) {
     event.preventDefault(); 
     
-    // 1. Captura de Dados
     const origemTexto = document.getElementById('origem').value;
     const destinoTexto = document.getElementById('destino').value;
     const eixos = parseInt(document.getElementById('eixos').value);
@@ -332,7 +368,6 @@ formRota.addEventListener('submit', async function(event) {
     btnCalcular.disabled = true;
     btnCalcular.textContent = 'BUSCANDO E CALCULANDO...';
 
-    // 2. Geocoding
     const coordsOrigem = await geocoding(origemTexto);
     const coordsDestino = await geocoding(destinoTexto);
 
@@ -343,7 +378,6 @@ formRota.addEventListener('submit', async function(event) {
         return;
     }
 
-    // 3. Roteamento e Cálculo
     await calcularERenderizarRota(coordsOrigem, coordsDestino, eixos);
     
     btnCalcular.disabled = false;
