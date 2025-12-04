@@ -5,13 +5,13 @@ body {
 }
 
 #app-container {
-    display: flex; /* Permite que o mapa e o painel fiquem lado a lado */
-    height: 100vh; /* Usa a altura total da tela */
+    display: flex;
+    height: 100vh;
 }
 
 /* 1. Estilo do Mapa */
 #mapa-customizado {
-    flex-grow: 1; /* Ocupa o máximo de espaço horizontal disponível */
+    flex-grow: 1;
     height: 100%;
     min-width: 50%; 
 }
@@ -39,7 +39,7 @@ body {
     padding: 10px;
     margin-bottom: 15px;
     border: 1px solid #ccc;
-    box-sizing: border-box; /* Garante que o padding não aumente a largura total */
+    box-sizing: border-box; 
 }
 
 #btn-calcular {
